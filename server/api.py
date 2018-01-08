@@ -49,3 +49,42 @@ class WhitelistResource(Resource):
     return HttpSuccess({ApiKey.SIGNED_TX : signed_tx}).toJson()
 
 
+class ExchangeRateResource(Resource):
+
+  def get(self):
+    exchange_rate = request.args.get(ApiKey.EXCHANGE_RATE, None)
+    nonce     = request.args.get(ApiKey.NONCE, None)
+    gas_price = request.args.get(ApiKey.GAS_PRICE, None)
+    start_gas = request.args.get(ApiKey.START_GAS, None)
+    if None in [exchange_rate, nonce, gas_price, start_gas]:
+      return HttpError(
+        error_code = ApiErrorCode.QUERY_PARAM_MISSING,
+        message = 'Query parameter missing! requires exchange_rate, nonce, gas_price, and start_gas!').toJson()
+    
+    nonce = int(nonce)
+    gas_price = int(gas_price)
+    start_gas = int(start_gas)
+    function_name = SupportedFunctionName.SET_EXCHANGE_RATE
+    function_params = exchange_rate
+    key_info = KeyInfoManager.getKeyInfo(KeyAlias.EXCHANGE_RATE_CONTROLLER)
+    success, signed_tx = TransactionSigner.signTransaction(
+      from_addr = key_info.address,
+      nonce = nonce,
+      gas_price = gas_price,
+      start_gas = start_gas,
+      smart_contract_name = SmartContractName.THETA_TOKEN_SALE,
+      function_name = function_name,
+      function_params = function_params,
+      private_key = key_info.private_key)
+    
+    if not success:
+      return HttpError(
+        error_code = ApiErrorCode.TX_SIGNING_FAILURE,
+        message = 'Failed to sign the transaction!').toJson()
+    
+    Logger.printInfo('Signed transaction - nonce: %s, function_name: %s, function_params: %s, signed_tx: %s'%\
+      (nonce, function_name, function_params, signed_tx))
+   
+    return HttpSuccess({ApiKey.SIGNED_TX : signed_tx}).toJson()
+
+
